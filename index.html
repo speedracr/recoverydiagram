@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gerichtliche Forderungsbeitreibung — Prozess in Bewegung</title>
+  <style>
+    :root {
+      --ink: #17201d;
+      --muted: #66706c;
+      --line: #727b77;
+      --paper: #ffffff;
+      --soft: #f5f6f5;
+      --green: #e7f4e9;
+      --green-line: #40965a;
+      --red: #fbeaea;
+      --red-line: #d75a5a;
+      --orange: #fff2de;
+      --orange-line: #d99135;
+      --grey: #f0f2f1;
+      --grey-line: #8b9490;
+      --blue: #e9effc;
+      --focus: #275bb5;
+      --client-a: #3d68c5;
+      --client-b: #a9577a;
+      --client-c: #b97821;
+      --client-d: #247c69;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--paper); }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Neue Haas Grotesk Text Pro", "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { color: #fff; background: var(--focus); }
+    button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 28px 34px 22px;
+    }
+    .masthead {
+      display: grid;
+      grid-template-columns: minmax(360px, 1fr) auto auto;
+      align-items: end;
+      gap: 30px;
+      padding: 0 2px 20px;
+      border-bottom: 1px solid #dfe3e1;
+    }
+    h1 {
+      margin: 0 0 5px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(28px, 2.25vw, 42px);
+      font-weight: 500;
+      letter-spacing: -0.025em;
+      line-height: 1;
+    }
+    .subtitle { margin: 0; color: var(--muted); font-size: 13px; letter-spacing: .01em; }
+    .legend { display: flex; gap: 16px; align-items: center; color: #4d5753; font-size: 11px; white-space: nowrap; }
+    .legend-item { display: inline-flex; gap: 6px; align-items: center; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 3px; background: var(--dot); }
+    .control {
+      appearance: none;
+      border: 1px solid #aeb6b2;
+      background: #fff;
+      color: var(--ink);
+      min-width: 44px;
+      height: 36px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font: 650 12px/1 inherit;
+      cursor: pointer;
+      transition: background .18s ease, border-color .18s ease;
+    }
+    .control:hover { background: #f5f7f6; border-color: #7a8580; }
+    .control svg { display: block; width: 15px; height: 15px; margin: auto; fill: currentColor; }
+    .control .icon-play { display: none; }
+    .control[data-playing="false"] .icon-play { display: block; }
+    .control[data-playing="false"] .icon-pause { display: none; }
+    .diagram-scroll {
+      position: relative;
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-color: #b6bdb9 #f1f3f2;
+      scrollbar-width: thin;
+    }
+    .diagram-scroll::-webkit-scrollbar { height: 8px; }
+    .diagram-scroll::-webkit-scrollbar-track { background: #f1f3f2; }
+    .diagram-scroll::-webkit-scrollbar-thumb { background: #b6bdb9; border-radius: 8px; }
+    .diagram-stage {
+      position: relative;
+      width: max(100%, 1720px);
+      aspect-ratio: 2280 / 900;
+      margin: 0 auto;
+    }
+    #flow { width: 100%; height: 100%; display: block; overflow: visible; }
+    .section-rule { stroke: #d7dcda; stroke-width: 1; stroke-dasharray: 4 7; }
+    .section-title { fill: #6a736f; font-size: 11px; font-weight: 750; letter-spacing: .11em; }
+    .section-subtitle { fill: #66706c; font-size: 9px; }
+    .edge { fill: none; stroke: var(--line); stroke-width: 1.35; marker-end: url(#arrow); vector-effect: non-scaling-stroke; }
+    .edge.secondary { stroke: #a1a8a4; stroke-width: 1.05; }
+    .edge.success { stroke: #5d9f6c; }
+    .edge.alert { stroke: #d26a6a; }
+    .edge.special { stroke: #d59442; }
+    .edge-label { fill: #59625e; font-size: 8.5px; font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+    .node rect { stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+    .node.neutral rect { fill: var(--grey); stroke: var(--grey-line); }
+    .node.green rect { fill: var(--green); stroke: var(--green-line); }
+    .node.red rect { fill: var(--red); stroke: var(--red-line); }
+    .node.orange rect { fill: var(--orange); stroke: var(--orange-line); }
+    .node.entry rect { fill: #fff; stroke: #252c29; stroke-width: 2.4; }
+    .node text { fill: #26302c; text-anchor: middle; font-size: 10px; font-weight: 760; letter-spacing: .015em; }
+    .node .sub { fill: #5e6864; font-size: 8px; font-weight: 540; }
+    .ref { fill: #6f7874; font: 8px Georgia, serif; font-style: italic; }
+    .annotation-title { fill: #2f3935; font-size: 12px; font-weight: 760; }
+    .annotation { fill: #56605c; font-size: 9px; }
+    .annotation-muted { fill: #626b67; font-size: 8.5px; }
+    .annotation-accent { fill: #4569b2; font-size: 9px; font-weight: 650; }
+    .small-rule { stroke: #d7dcda; stroke-width: 1; }
+    .input-chip { fill: #fff; stroke: #b7bfbb; }
+    .input-text { fill: #4b5551; font-size: 8.5px; font-weight: 650; text-anchor: middle; }
+    .token-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+    .claim-token {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 28px;
+      min-width: 91px;
+      padding: 0 9px 0 7px;
+      border: 1px solid color-mix(in srgb, var(--client) 70%, #1f2824);
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--client) 10%, white);
+      box-shadow: 0 4px 11px rgba(23,32,29,.14);
+      color: #1e2723;
+      opacity: 0;
+      will-change: transform, opacity;
+      font-variant-numeric: tabular-nums;
+    }
+    .claim-token.visible { opacity: 1; }
+    .claim-token.amount-pulse { animation: amountPulse .55s ease-out; }
+    .diagram-stage.paused .claim-token { animation-play-state: paused; }
+    @keyframes amountPulse {
+      0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--client) 35%, transparent); }
+      45% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--client) 12%, transparent); }
+      100% { box-shadow: 0 4px 11px rgba(23,32,29,.14); }
+    }
+    .token-mark { position: relative; width: 11px; height: 11px; flex: 0 0 11px; color: var(--client); }
+    .token-mark.auto::before {
+      content: ""; position: absolute; inset: 1px 2px; border: 1.5px solid currentColor; border-radius: 50%;
+    }
+    .token-mark.auto::after {
+      content: ""; position: absolute; left: 5px; top: 0; width: 1.5px; height: 11px; background: currentColor; transform: rotate(45deg); border-radius: 2px;
+    }
+    .token-mark.review::before { content: "!"; position: absolute; inset: -2px 0 0; text-align: center; font-size: 12px; font-weight: 900; }
+    .token-mark.complete::before {
+      content: ""; position: absolute; left: 2px; top: 4px; width: 7px; height: 4px; border-left: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor; transform: rotate(-45deg);
+    }
+    .token-mark.wait::before { content: ""; position: absolute; left: 2px; top: 1px; width: 2px; height: 9px; background: currentColor; box-shadow: 5px 0 currentColor; }
+    .token-id { color: color-mix(in srgb, var(--client) 82%, #17201d); font-size: 8px; font-weight: 800; letter-spacing: .04em; }
+    .token-amount { font-size: 11px; font-weight: 760; white-space: nowrap; }
+    .footnote {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 10px 2px 0;
+      color: #626b67;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+    .status { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    @media (max-width: 800px) {
+      .page { padding: 20px 16px 14px; }
+      .masthead { grid-template-columns: 1fr auto; gap: 14px; }
+      .legend { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; }
+      .diagram-stage { min-height: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .claim-token { transition: none; }
+      .claim-token.amount-pulse { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="masthead">
+      <div>
+        <h1>Gerichtliche Forderungsbeitreibung</h1>
+        <p class="subtitle">Ein weitgehend deterministischer Rechtsprozess – mit individuellem Verlauf je Forderung.</p>
+      </div>
+      <div class="legend" aria-label="Farblegende der fiktiven Auftraggeber">
+        <span class="legend-item"><i class="legend-dot" style="--dot:var(--client-a)"></i>Auftraggeber A</span>
+        <span class="legend-item"><i class="legend-dot" style="--dot:var(--client-b)"></i>Auftraggeber B</span>
+        <span class="legend-item"><i class="legend-dot" style="--dot:var(--client-c)"></i>Auftraggeber C</span>
+        <span class="legend-item"><i class="legend-dot" style="--dot:var(--client-d)"></i>Auftraggeber D</span>
+      </div>
+      <button class="control" id="playPause" type="button" aria-pressed="false" aria-label="Animation pausieren" title="Animation pausieren" data-playing="true">
+        <svg class="icon-pause" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1"></rect><rect x="9.5" y="2" width="3.5" height="12" rx="1"></rect></svg>
+        <svg class="icon-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5a1 1 0 0 1 1.55-.83l7.6 5.08a1.5 1.5 0 0 1 0 2.5l-7.6 5.08A1 1 0 0 1 4 13.5z"></path></svg>
+      </button>
+    </header>
+
+    <section class="diagram-scroll" aria-label="Animierter Prozess der gerichtlichen Forderungsbeitreibung">
+      <div class="diagram-stage" id="stage">
+        <svg id="flow" viewBox="0 0 2280 900" role="img" aria-labelledby="flowTitle flowDesc">
+          <title id="flowTitle">Prozess der gerichtlichen Forderungsbeitreibung</title>
+          <desc id="flowDesc">Forderungen gelangen aus vorgelagerten Systemen in die Prüfung, durchlaufen das Mahnverfahren, mögliche manuelle und streitige Pfade, die Titulierung und die Vollstreckung.</desc>
+          <defs>
+            <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="#727b77"></path>
+            </marker>
+          </defs>
+
+          <text class="section-title" x="25" y="36">VORGERICHTLICHER KONTEXT</text>
+          <text class="section-subtitle" x="25" y="53">Materiell-rechtlicher Anspruch · BGB</text>
+          <line class="section-rule" x1="330" y1="24" x2="330" y2="840"></line>
+          <text class="section-title" x="365" y="36">PRÜFUNG &amp; VORBEREITUNG</text>
+          <text class="section-subtitle" x="365" y="53">Strukturierte Aufnahme und Validierung</text>
+          <line class="section-rule" x1="1015" y1="24" x2="1015" y2="840"></line>
+          <text class="section-title" x="1050" y="36">GERICHTLICHER PROZESS</text>
+          <text class="section-subtitle" x="1050" y="53">Mahnverfahren · ZPO §§ 688 ff.</text>
+          <line class="section-rule" x1="1740" y1="24" x2="1740" y2="840"></line>
+          <text class="section-title" x="1775" y="36">TITEL &amp; VOLLSTRECKUNG</text>
+          <text class="section-subtitle" x="1775" y="53">ZPO §§ 704 ff. / 753 ff.</text>
+
+          <g aria-label="Vorgerichtlicher Kontext">
+            <text class="annotation-title" x="26" y="112">Vorhandene Informationen</text>
+            <text class="annotation" x="26" y="137"><tspan x="26" dy="0">Gläubiger / Auftraggeber · Schuldner / Kunde</tspan><tspan x="26" dy="16">Forderungsdaten · bisherige Zahlungen</tspan><tspan x="26" dy="16">Kosten, Zinsen und Nachweise</tspan></text>
+            <rect class="input-chip" x="26" y="205" width="82" height="30" rx="6"></rect><text class="input-text" x="67" y="224">API</text>
+            <rect class="input-chip" x="118" y="205" width="82" height="30" rx="6"></rect><text class="input-text" x="159" y="224">CSV</text>
+            <rect class="input-chip" x="210" y="205" width="82" height="30" rx="6"></rect><text class="input-text" x="251" y="224">PDF</text>
+            <path class="edge secondary" d="M 292 220 C 330 220 342 318 385 318"></path>
+            <line class="small-rule" x1="26" y1="565" x2="292" y2="565"></line>
+            <text class="annotation-title" x="26" y="594">Vorgerichtlich bereits digital</text>
+            <text class="annotation-muted" x="26" y="619"><tspan x="26" dy="0">Digitale Kanäle, Zahlungsschnittstellen,</tspan><tspan x="26" dy="15">Kundenkommunikation und datenbasiertes Routing</tspan><tspan x="26" dy="15">haben das moderne Inkasso verbessert.</tspan></text>
+            <text class="annotation-accent" x="26" y="705"><tspan x="26" dy="0">Hypothese</tspan><tspan x="26" dy="16">Historisch gewachsene gerichtliche Prozesse</tspan><tspan x="26" dy="16">enthalten weiterhin manuelle Systemübergaben —</tspan><tspan x="26" dy="16">und relevantes Automatisierungspotenzial.</tspan></text>
+          </g>
+
+          <g id="nodes">
+            <g class="node entry" data-node="case" transform="translate(385 280)"><rect width="150" height="76" rx="10"></rect><text x="75" y="34">FALL</text><text class="sub" x="75" y="51">Aufnahme / Prüfung</text></g>
+
+            <g class="node orange" data-node="eopCheck" transform="translate(590 75)"><rect width="160" height="62" rx="8"></rect><text x="80" y="27">EOP-PRÜFUNG</text><text class="sub" x="80" y="43">EOP geeignet?</text></g>
+            <g class="node orange" data-node="eopPrepare" transform="translate(815 75)"><rect width="175" height="62" rx="8"></rect><text x="87.5" y="27">EOP-VERFAHREN</text><text class="sub" x="87.5" y="43">Vorbereitung · Demo-Ende</text></g>
+
+            <g class="node red" data-node="intakeReview" transform="translate(610 205)"><rect width="180" height="62" rx="8"></rect><text x="90" y="27">MANUELLE PRÜFUNG</text><text class="sub" x="90" y="44">Fall ergänzen / korrigieren</text></g>
+            <g class="node green" data-node="validated" transform="translate(610 410)"><rect width="180" height="62" rx="8"></rect><text x="90" y="27">VALIDIERTER FALL</text><text class="sub" x="90" y="44">Voraussetzungen erfüllt</text></g>
+
+            <text class="annotation-title" x="835" y="345">Mahnverfahren vorbereiten</text>
+            <text class="annotation" x="835" y="370"><tspan x="835">Freigabe, Parteien und Forderungshöhe</tspan><tspan x="835" dy="15">Anspruchsgrund und zustellfähige Anschrift</tspan><tspan x="835" dy="15">Gericht, Zuständigkeit und Erklärungen</tspan></text>
+
+            <g class="node green" data-node="mahn" transform="translate(1060 410)"><rect width="185" height="62" rx="8"></rect><text x="92.5" y="25">MAHNANTRAG</text><text class="sub" x="92.5" y="42">VIA EDA SENDEN</text></g>
+            <g class="node red" data-node="courtReview" transform="translate(1070 190)"><rect width="165" height="62" rx="8"></rect><text x="82.5" y="25">MANUELLE PRÜFUNG</text><text class="sub" x="82.5" y="42">Monierung beheben</text></g>
+            <g class="node neutral" data-node="tracking" transform="translate(1310 410)"><rect width="185" height="62" rx="8"></rect><text x="92.5" y="24">FALL AKTUALISIEREN</text><text class="sub" x="92.5" y="41">Fristüberwachung</text></g>
+            <g class="node green" data-node="paidClosure" transform="translate(1310 665)"><rect width="185" height="62" rx="8"></rect><text x="92.5" y="24">FALL AKTUALISIEREN</text><text class="sub" x="92.5" y="41">Vollzahlung · Abschluss</text></g>
+            <g class="node neutral" data-node="remaining" transform="translate(1545 610)"><rect width="190" height="62" rx="8"></rect><text x="95" y="24">RESTFORDERUNG</text><text class="sub" x="95" y="41">Teilzahlung berücksichtigt</text></g>
+            <g class="node neutral" data-node="vb" transform="translate(1545 410)"><rect width="190" height="62" rx="8"></rect><text x="95" y="22">ANTRAG AUF</text><text x="95" y="37">VOLLTRECKUNGSBESCHEID</text><text class="sub" x="95" y="52">Erlassen und zugestellt</text></g>
+            <g class="node red" data-node="oppositionReview" transform="translate(1545 225)"><rect width="190" height="62" rx="8"></rect><text x="95" y="24">FALL AKTUALISIEREN</text><text class="sub" x="95" y="41">Widerspruch · Prüfung</text></g>
+            <g class="node neutral" data-node="dispute" transform="translate(1790 225)"><rect width="175" height="62" rx="8"></rect><text x="87.5" y="25">STREITIGES</text><text x="87.5" y="40">VERFAHREN</text><text class="sub" x="87.5" y="54">Optionales Klageverfahren</text></g>
+            <g class="node red" data-node="caseClosure" transform="translate(2025 100)"><rect width="175" height="62" rx="8"></rect><text x="87.5" y="27">FALLABSCHLUSS</text><text class="sub" x="87.5" y="44">Erfolglose Fortführung</text></g>
+            <g class="node green" data-node="title" transform="translate(1790 410)"><rect width="175" height="62" rx="8"></rect><text x="87.5" y="25">VOLLTRECKBARER</text><text x="87.5" y="41">TITEL</text><text class="sub" x="87.5" y="54">VB ist bereits ein Titel</text></g>
+            <g class="node neutral" data-node="recommend" transform="translate(2025 410)"><rect width="175" height="62" rx="8"></rect><text x="87.5" y="22">VOLLSTRECKUNGSMASSNAHME</text><text x="87.5" y="37">EMPFEHLEN</text><text class="sub" x="87.5" y="52">Regeln + Fallkenntnis</text></g>
+            <g class="node neutral" data-node="send" transform="translate(2025 610)"><rect width="175" height="62" rx="8"></rect><text x="87.5" y="22">VOLLSTRECKUNGSAUFTRAG</text><text x="87.5" y="37">ELEKTRONISCH SENDEN</text><text class="sub" x="87.5" y="52">Vollstreckungsanweisung</text></g>
+            <g class="node green" data-node="followup" transform="translate(2025 780)"><rect width="175" height="62" rx="8"></rect><text x="87.5" y="22">FALL AKTUALISIEREN</text><text x="87.5" y="37">&amp; FOLGEMASSNAHMEN</text><text class="sub" x="87.5" y="52">Oder erfolgreicher Abschluss</text></g>
+          </g>
+
+          <g id="connectors">
+            <path id="e-case-validated" class="edge success" d="M 535 333 C 565 350 570 430 610 441"></path>
+            <text class="edge-label" x="545" y="390">Kriterien erfüllt</text>
+            <path id="e-case-review" class="edge alert" d="M 535 306 C 565 282 575 236 610 236"></path>
+            <text class="edge-label" x="545" y="272">unvollständig</text>
+            <path id="e-review-validated" class="edge success" d="M 700 267 L 700 410"></path>
+            <text class="edge-label" x="710" y="340">korrigiert</text>
+            <path id="e-case-eop" class="edge special" d="M 460 280 C 485 180 520 106 590 106"></path>
+            <text class="edge-label" x="475" y="184">optional</text>
+            <path id="e-eop-prepare" class="edge special" d="M 750 106 L 815 106"></path>
+            <text class="edge-label" x="774" y="96">ja</text>
+            <path id="e-validated-mahn" class="edge success" d="M 790 441 C 900 441 950 441 1060 441"></path>
+            <path id="e-mahn-tracking" class="edge success" d="M 1245 441 L 1310 441"></path>
+            <text class="edge-label" x="1250" y="428">Mahnbescheid zugestellt</text>
+            <path id="e-mahn-court" class="edge alert" d="M 1152 410 L 1152 252"></path>
+            <text class="edge-label" x="1163" y="335">Monierung</text>
+            <path id="e-court-mahn" class="edge success" d="M 1070 221 C 1018 221 1018 376 1080 410"></path>
+            <text class="edge-label" x="1018" y="286">korrigieren &amp; erneut senden</text>
+            <path id="e-tracking-paid" class="edge success" d="M 1402 472 L 1402 665"></path>
+            <text class="edge-label" x="1412" y="570">Vollzahlung</text>
+            <path id="e-tracking-remaining" class="edge success" d="M 1495 454 C 1530 470 1515 620 1545 641"></path>
+            <text class="edge-label" x="1500" y="530">Teilzahlung</text>
+            <path id="e-remaining-vb" class="edge success" d="M 1640 610 L 1640 472"></path>
+            <path id="e-tracking-vb" class="edge success" d="M 1495 441 L 1545 441"></path>
+            <text class="edge-label" x="1498" y="428">kein Widerspruch</text>
+            <path id="e-tracking-opposition" class="edge alert" d="M 1450 410 C 1490 370 1500 256 1545 256"></path>
+            <text class="edge-label" x="1468" y="332">Widerspruch</text>
+            <path id="e-opposition-dispute" class="edge alert" d="M 1735 256 L 1790 256"></path>
+            <path id="e-vb-title" class="edge success" d="M 1735 441 L 1790 441"></path>
+            <text class="edge-label" x="1740" y="428">erlassen + zugestellt</text>
+            <path id="e-title-dispute" class="edge alert" d="M 1878 410 L 1878 287"></path>
+            <text class="edge-label" x="1888" y="355">Einspruch gegen VB</text>
+            <path id="e-dispute-title" class="edge success" d="M 1845 287 C 1770 330 1770 397 1825 410"></path>
+            <text class="edge-label" x="1754" y="348">Urteil zugunsten des Gläubigers</text>
+            <path id="e-dispute-closure" class="edge alert" d="M 1965 244 C 2010 220 1990 131 2025 131"></path>
+            <text class="edge-label" x="1983" y="192">keine wirtschaftliche Fortführung</text>
+            <path id="e-title-recommend" class="edge success" d="M 1965 441 L 2025 441"></path>
+            <path id="e-recommend-closure" class="edge alert" d="M 2112 410 L 2112 162"></path>
+            <text class="edge-label" x="2122" y="286">nicht wirtschaftlich</text>
+            <path id="e-recommend-send" class="edge" d="M 2112 472 L 2112 610"></path>
+            <path id="e-send-followup" class="edge success" d="M 2112 672 L 2112 780"></path>
+          </g>
+
+          <g aria-label="Ergänzende Prozesshinweise">
+            <text class="ref" x="1330" y="397">Reaktionsfrist · Widerspruch ZPO §§ 694 ff.</text>
+            <text class="ref" x="1550" y="397">Vollstreckungsbescheid · ZPO §§ 699–700</text>
+            <text class="annotation" x="2025" y="505"><tspan x="2025">Offener Betrag · Vermögen / Einkommen</tspan><tspan x="2025" dy="14">Frühere Versuche · Zahlungsverhalten · Kosten</tspan><tspan x="2025" dy="14">Auftraggeberregeln · Portfolioerfahrung</tspan></text>
+            <text class="annotation-muted" x="1810" y="625"><tspan x="1810">Beispiele</tspan><tspan x="1810" dy="15">Gerichtsvollzieher</tspan><tspan x="1810" dy="15">Zahlungsvereinbarung</tspan><tspan x="1810" dy="15">Vermögensauskunft</tspan><tspan x="1810" dy="15">Drittauskünfte</tspan></text>
+          </g>
+        </svg>
+        <div class="token-layer" id="tokenLayer" aria-live="off"></div>
+      </div>
+    </section>
+
+    <footer class="footnote">
+      <span>Illustrative synthetische Forderungen · vereinfachte Prozessdarstellung, keine Rechtsberatung oder Gebührenberechnung.</span>
+      <span class="status" id="status">Welle 1 von 5 · läuft</span>
+    </footer>
+  </main>
+
+  <script>
+    // Central process layout: each route segment points to an SVG connector above.
+    const EDGES = {
+      caseValidated: 'e-case-validated', caseReview: 'e-case-review', reviewValidated: 'e-review-validated',
+      caseEop: 'e-case-eop', eopPrepare: 'e-eop-prepare', validatedMahn: 'e-validated-mahn',
+      mahnTracking: 'e-mahn-tracking', mahnCourt: 'e-mahn-court', courtMahn: 'e-court-mahn',
+      trackingPaid: 'e-tracking-paid', trackingRemaining: 'e-tracking-remaining', remainingVb: 'e-remaining-vb',
+      trackingVb: 'e-tracking-vb', trackingOpposition: 'e-tracking-opposition', oppositionDispute: 'e-opposition-dispute',
+      vbTitle: 'e-vb-title', titleDispute: 'e-title-dispute', disputeTitle: 'e-dispute-title',
+      disputeClosure: 'e-dispute-closure', titleRecommend: 'e-title-recommend', recommendClosure: 'e-recommend-closure',
+      recommendSend: 'e-recommend-send', sendFollowup: 'e-send-followup'
+    };
+
+    // Reusable deterministic routes. Repeated edges intentionally depict correction/resubmission loops.
+    const ROUTES = {
+      standardEnforcement: ['caseValidated','validatedMahn','mahnTracking','trackingVb','vbTitle','titleRecommend','recommendSend','sendFollowup'],
+      standardTitle: ['caseValidated','validatedMahn','mahnTracking','trackingVb','vbTitle'],
+      reviewMain: ['caseReview','reviewValidated','validatedMahn','mahnTracking','trackingVb','vbTitle','titleRecommend'],
+      reviewPayment: ['caseReview','reviewValidated','validatedMahn','mahnTracking','trackingPaid'],
+      partialTitle: ['caseValidated','validatedMahn','mahnTracking','trackingRemaining','remainingVb','vbTitle'],
+      fullPayment: ['caseValidated','validatedMahn','mahnTracking','trackingPaid'],
+      eop: ['caseEop','eopPrepare'],
+      courtCorrection: ['caseValidated','validatedMahn','mahnCourt','courtMahn','mahnTracking','trackingVb','vbTitle'],
+      reviewWiderspruch: ['caseReview','reviewValidated','validatedMahn','mahnTracking','trackingOpposition','oppositionDispute'],
+      widerspruchWin: ['caseValidated','validatedMahn','mahnTracking','trackingOpposition','oppositionDispute','disputeTitle','titleRecommend'],
+      widerspruchLoss: ['caseValidated','validatedMahn','mahnTracking','trackingOpposition','oppositionDispute','disputeClosure'],
+      einspruchWin: ['caseValidated','validatedMahn','mahnTracking','trackingVb','vbTitle','titleDispute','disputeTitle','titleRecommend'],
+      titleEnforcement: ['titleRecommend','recommendSend','sendFollowup'],
+      titleClosure: ['titleRecommend','recommendClosure']
+    };
+
+    // Twenty fixed synthetic claims. Adjust starts, amounts and routes here.
+    const CASES = [
+      {id:'A1',client:'A',amount:420,start:0.0,route:'standardEnforcement'},
+      {id:'B1',client:'B',amount:680,start:0.9,route:'reviewMain'},
+      {id:'C1',client:'C',amount:1250,start:1.8,route:'courtCorrection',changes:{4:1285}},
+      {id:'A2',client:'A',amount:690,start:17.0,route:'standardEnforcement'},
+      {id:'A3',client:'A',amount:310,start:17.8,route:'partialTitle',changes:{3:210}},
+      {id:'B2',client:'B',amount:1240,start:18.6,route:'reviewMain'},
+      {id:'D1',client:'D',amount:740,start:19.4,route:'titleEnforcement',entry:'title'},
+      {id:'A4',client:'A',amount:860,start:34.0,route:'fullPayment'},
+      {id:'B3',client:'B',amount:540,start:34.8,route:'reviewMain'},
+      {id:'C2',client:'C',amount:370,start:35.6,route:'courtCorrection'},
+      {id:'D2',client:'D',amount:1180,start:36.4,route:'titleEnforcement',entry:'title'},
+      {id:'A5',client:'A',amount:950,start:51.0,route:'eop'},
+      {id:'B4',client:'B',amount:780,start:51.8,route:'reviewPayment'},
+      {id:'C3',client:'C',amount:2100,start:52.6,route:'widerspruchWin'},
+      {id:'D3',client:'D',amount:2650,start:53.4,route:'titleEnforcement',entry:'title'},
+      {id:'B5',client:'B',amount:1500,start:68.0,route:'reviewWiderspruch'},
+      {id:'C4',client:'C',amount:890,start:68.8,route:'widerspruchLoss'},
+      {id:'C5',client:'C',amount:730,start:69.6,route:'einspruchWin'},
+      {id:'D4',client:'D',amount:190,start:70.4,route:'titleClosure',entry:'title'},
+      {id:'D5',client:'D',amount:960,start:71.2,route:'standardEnforcement',changes:{5:1015}}
+    ];
+
+    const CLIENT_COLORS = { A:'var(--client-a)', B:'var(--client-b)', C:'var(--client-c)', D:'var(--client-d)' };
+    const WAVE_STARTS = [0,17,34,51,68];
+    const TRAVEL = 1.45;
+    const DWELL = .48;
+    const FADE = .7;
+    const LOOP_END = 90;
+    const formatEuro = amount => new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(amount);
+    const reviewEdges = new Set(['caseReview','mahnCourt','trackingOpposition','titleDispute']);
+    const completeEdges = new Set(['reviewValidated','vbTitle','disputeTitle','trackingPaid','sendFollowup','recommendClosure','disputeClosure','eopPrepare']);
+    const waitingEdges = new Set(['mahnTracking','trackingVb','oppositionDispute']);
+
+    const stage = document.getElementById('stage');
+    const tokenLayer = document.getElementById('tokenLayer');
+    const playPause = document.getElementById('playPause');
+    const status = document.getElementById('status');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let playing = !reducedMotion;
+    let simTime = reducedMotion ? 20 : 0;
+    let previousFrame = performance.now();
+
+    function createToken(item) {
+      const el = document.createElement('div');
+      el.className = 'claim-token';
+      el.style.setProperty('--client', CLIENT_COLORS[item.client]);
+      el.innerHTML = `<span class="token-mark auto" aria-hidden="true"></span><span class="token-id">${item.id}</span><span class="token-amount">${formatEuro(item.amount)}</span>`;
+      el.setAttribute('role','img');
+      tokenLayer.appendChild(el);
+      return { ...item, el, amountEl:el.querySelector('.token-amount'), mark:el.querySelector('.token-mark'), shownAmount:item.amount, visible:false };
+    }
+    const tokens = CASES.map(createToken);
+
+    function pointOnEdge(edgeName, progress) {
+      const path = document.getElementById(EDGES[edgeName]);
+      const length = path.getTotalLength();
+      return path.getPointAtLength(Math.max(0, Math.min(1, progress)) * length);
+    }
+
+    function entryPoint(item) {
+      if (item.entry === 'title') return {x:1877.5,y:441};
+      return {x:460,y:318};
+    }
+
+    function setTokenState(token, edgeName, final=false) {
+      const state = final || completeEdges.has(edgeName) ? 'complete' : reviewEdges.has(edgeName) ? 'review' : waitingEdges.has(edgeName) ? 'wait' : 'auto';
+      token.mark.className = `token-mark ${state}`;
+      const names = {auto:'automatische Bearbeitung',review:'manuelle Prüfung erforderlich',wait:'wartend',complete:'abgeschlossen oder validiert'};
+      token.el.setAttribute('aria-label', `${token.id}, Auftraggeber ${token.client}, ${formatEuro(token.shownAmount)}, ${names[state]}`);
+    }
+
+    function renderToken(token) {
+      const local = simTime - token.start;
+      const segment = TRAVEL + DWELL;
+      const total = token.route in ROUTES ? ROUTES[token.route].length * segment : 0;
+      if (local < 0 || local > total + FADE) {
+        token.el.classList.remove('visible'); token.visible = false; return;
+      }
+      const route = ROUTES[token.route];
+      const segmentIndex = Math.min(route.length - 1, Math.floor(Math.max(0, local) / segment));
+      const within = Math.max(0, local - segmentIndex * segment);
+      const progress = Math.min(1, within / TRAVEL);
+      const edgeName = route[segmentIndex];
+      let point;
+      if (segmentIndex === 0 && progress < .12) {
+        const start = entryPoint(token); const target = pointOnEdge(edgeName, progress / .12);
+        point = {x:start.x + (target.x-start.x)*(progress/.12), y:start.y + (target.y-start.y)*(progress/.12)};
+      } else point = pointOnEdge(edgeName, progress);
+
+      const amount = Object.entries(token.changes || {}).reduce((value,[at,next]) => segmentIndex >= Number(at) ? next : value, token.amount);
+      if (amount !== token.shownAmount) {
+        token.shownAmount = amount;
+        token.amountEl.textContent = formatEuro(amount);
+        token.el.classList.remove('amount-pulse'); void token.el.offsetWidth; token.el.classList.add('amount-pulse');
+      }
+      setTokenState(token, edgeName, segmentIndex === route.length - 1 && progress === 1);
+      const rect = stage.getBoundingClientRect();
+      const scale = Math.min(rect.width / 2280, rect.height / 900);
+      const offsetX = (rect.width - 2280 * scale) / 2;
+      const offsetY = (rect.height - 900 * scale) / 2;
+      const lane = ((token.id.charCodeAt(1) % 3) - 1) * 7;
+      token.el.style.transform = `translate(${offsetX + point.x * scale - 45}px, ${offsetY + point.y * scale - 14 + lane}px)`;
+      token.el.style.opacity = local > total ? String(Math.max(0,1-(local-total)/FADE)) : '1';
+      token.el.classList.add('visible'); token.visible = true;
+    }
+
+    function updateStatus() {
+      const wave = Math.min(5, Math.max(1, WAVE_STARTS.filter(start => simTime >= start).length));
+      status.textContent = `Welle ${wave} von 5 · ${playing ? 'läuft' : 'pausiert'}`;
+      const controlLabel = playing ? 'Animation pausieren' : 'Animation fortsetzen';
+      playPause.dataset.playing = String(playing);
+      playPause.setAttribute('aria-label', controlLabel);
+      playPause.setAttribute('title', controlLabel);
+      playPause.setAttribute('aria-pressed', String(playing));
+      stage.classList.toggle('paused', !playing);
+    }
+
+    function frame(now) {
+      const delta = Math.min(.05, (now - previousFrame) / 1000);
+      previousFrame = now;
+      if (playing) {
+        simTime += delta;
+        if (simTime >= LOOP_END) simTime = 0;
+      }
+      tokens.forEach(renderToken);
+      updateStatus();
+      requestAnimationFrame(frame);
+    }
+
+    playPause.addEventListener('click', () => { playing = !playing; previousFrame = performance.now(); updateStatus(); });
+    updateStatus();
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
