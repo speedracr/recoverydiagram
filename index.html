@@ -176,6 +176,46 @@
       line-height: 1.4;
     }
     .status { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .annotation-layer { position: absolute; inset: 0; pointer-events: none; }
+    .annotation-layer.active { pointer-events: auto; cursor: crosshair; }
+    #annoSvg { width: 100%; height: 100%; display: block; }
+    .anno-stroke { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 5; opacity: .92; vector-effect: non-scaling-stroke; }
+    .anno-toolbar {
+      position: fixed;
+      left: 18px;
+      bottom: 18px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      background: rgba(255,255,255,.94);
+      border: 1px solid #d8dcda;
+      border-radius: 999px;
+      box-shadow: 0 6px 18px rgba(23,32,29,.14);
+    }
+    .anno-btn {
+      appearance: none;
+      border: 1px solid #c9cfcb;
+      background: #fff;
+      color: #3a423e;
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: background .15s ease, border-color .15s ease, color .15s ease;
+    }
+    .anno-btn svg { width: 15px; height: 15px; fill: currentColor; }
+    .anno-btn:hover { background: #f5f7f6; border-color: #9aa39e; }
+    .anno-pen[aria-pressed="true"] { background: color-mix(in srgb, var(--focus) 16%, #fff); border-color: var(--focus); color: var(--focus); }
+    .anno-colors { display: flex; align-items: center; gap: 6px; max-width: 0; overflow: hidden; opacity: 0; transition: max-width .18s ease, opacity .15s ease; }
+    .anno-toolbar.pen-active .anno-colors { max-width: 140px; opacity: 1; }
+    .anno-color { width: 18px; height: 18px; flex: 0 0 18px; border-radius: 50%; border: 2px solid #fff; background: var(--c); cursor: pointer; padding: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1); }
+    .anno-color[aria-pressed="true"] { box-shadow: inset 0 0 0 1px rgba(0,0,0,.1), 0 0 0 2px #17201d; }
     @media (max-width: 800px) {
       .page { padding: 20px 16px 14px; }
       .masthead { grid-template-columns: 1fr auto; gap: 14px; }
@@ -311,6 +351,9 @@
 
         </svg>
         <div class="token-layer" id="tokenLayer" aria-live="off"></div>
+        <div class="annotation-layer" id="annotationLayer">
+          <svg id="annoSvg" viewBox="0 0 2280 900"></svg>
+        </div>
       </div>
     </section>
 
@@ -319,6 +362,21 @@
       <span class="status" id="status">Welle 1 von 5 · läuft</span>
     </footer>
   </main>
+
+  <div class="anno-toolbar" id="annoToolbar" role="toolbar" aria-label="Präsentationsannotationen">
+    <button class="anno-btn anno-pen" id="annoPenBtn" type="button" aria-pressed="false" aria-label="Annotationen zeichnen" title="Annotationen zeichnen">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11.1 1.4a1.4 1.4 0 0 1 2 0l1.5 1.5a1.4 1.4 0 0 1 0 2l-8.6 8.6-4 1 1-4 8.1-8.1Z"></path></svg>
+    </button>
+    <div class="anno-colors" id="annoColors">
+      <button class="anno-color" type="button" data-color="#5fb26a" style="--c:#5fb26a" aria-pressed="true" aria-label="Annotationsfarbe: Grün" title="Grün"></button>
+      <button class="anno-color" type="button" data-color="#c23f8f" style="--c:#c23f8f" aria-pressed="false" aria-label="Annotationsfarbe: Magenta" title="Magenta"></button>
+      <button class="anno-color" type="button" data-color="#d97a2b" style="--c:#d97a2b" aria-pressed="false" aria-label="Annotationsfarbe: Orange" title="Orange"></button>
+      <button class="anno-color" type="button" data-color="#4a4f4c" style="--c:#4a4f4c" aria-pressed="false" aria-label="Annotationsfarbe: Dunkelgrau" title="Dunkelgrau"></button>
+    </div>
+    <button class="anno-btn anno-clear" id="annoClearBtn" type="button" aria-label="Alle Annotationen löschen" title="Alle Annotationen löschen">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10l-.8 9.3a1 1 0 0 1-1 .9H4.8a1 1 0 0 1-1-.9L3 4Z"></path><path d="M6 1.6h4a1 1 0 0 1 1 1V4H5V2.6a1 1 0 0 1 1-1Z"></path><path d="M1.5 4h13" stroke="currentColor" stroke-width="1.2"></path></svg>
+    </button>
+  </div>
 
   <script>
     // Central process layout: each route segment points to an SVG connector above.
@@ -485,6 +543,97 @@
     playPause.addEventListener('click', () => { playing = !playing; previousFrame = performance.now(); updateStatus(); });
     updateStatus();
     requestAnimationFrame(frame);
+
+    // Presentation annotation overlay: independent of the process animation, in-memory only.
+    const annoLayer = document.getElementById('annotationLayer');
+    const annoSvg = document.getElementById('annoSvg');
+    const annoToolbar = document.getElementById('annoToolbar');
+    const annoPenBtn = document.getElementById('annoPenBtn');
+    const annoClearBtn = document.getElementById('annoClearBtn');
+    const annoColorBtns = Array.from(document.querySelectorAll('.anno-color'));
+    let annoActive = false;
+    let annoColor = annoColorBtns[0].dataset.color;
+    let currentStroke = null;
+    let currentPoints = [];
+    const annoStrokes = [];
+
+    function setAnnoActive(active) {
+      annoActive = active;
+      annoLayer.classList.toggle('active', active);
+      annoToolbar.classList.toggle('pen-active', active);
+      annoPenBtn.setAttribute('aria-pressed', String(active));
+    }
+
+    function annoPoint(evt) {
+      const pt = annoSvg.createSVGPoint();
+      pt.x = evt.clientX; pt.y = evt.clientY;
+      const ctm = annoSvg.getScreenCTM();
+      if (!ctm) return { x: 0, y: 0 };
+      const loc = pt.matrixTransform(ctm.inverse());
+      return { x: loc.x, y: loc.y };
+    }
+
+    function pointsToPath(points) {
+      if (points.length < 2) {
+        const p = points[0];
+        return `M ${p.x} ${p.y} L ${p.x} ${p.y}`;
+      }
+      let d = `M ${points[0].x} ${points[0].y}`;
+      for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1], curr = points[i];
+        d += ` Q ${prev.x} ${prev.y} ${(prev.x + curr.x) / 2} ${(prev.y + curr.y) / 2}`;
+      }
+      const last = points[points.length - 1];
+      d += ` L ${last.x} ${last.y}`;
+      return d;
+    }
+
+    annoSvg.addEventListener('pointerdown', evt => {
+      if (!annoActive) return;
+      evt.preventDefault();
+      annoSvg.setPointerCapture(evt.pointerId);
+      currentPoints = [annoPoint(evt)];
+      currentStroke = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      currentStroke.setAttribute('class', 'anno-stroke');
+      currentStroke.setAttribute('stroke', annoColor);
+      currentStroke.setAttribute('d', pointsToPath(currentPoints));
+      annoSvg.appendChild(currentStroke);
+    });
+    annoSvg.addEventListener('pointermove', evt => {
+      if (!annoActive || !currentStroke) return;
+      currentPoints.push(annoPoint(evt));
+      currentStroke.setAttribute('d', pointsToPath(currentPoints));
+    });
+    function endStroke() {
+      if (!currentStroke) return;
+      annoStrokes.push(currentStroke);
+      currentStroke = null;
+      currentPoints = [];
+    }
+    annoSvg.addEventListener('pointerup', endStroke);
+    annoSvg.addEventListener('pointercancel', endStroke);
+
+    annoPenBtn.addEventListener('click', () => setAnnoActive(!annoActive));
+
+    annoColorBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        annoColor = btn.dataset.color;
+        annoColorBtns.forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+      });
+    });
+
+    annoClearBtn.addEventListener('click', () => {
+      annoStrokes.length = 0;
+      while (annoSvg.firstChild) annoSvg.removeChild(annoSvg.firstChild);
+    });
+
+    window.addEventListener('keydown', evt => {
+      if (evt.key === 'Escape' && annoActive) setAnnoActive(false);
+      if ((evt.metaKey || evt.ctrlKey) && evt.key.toLowerCase() === 'z' && annoStrokes.length) {
+        evt.preventDefault();
+        annoStrokes.pop().remove();
+      }
+    });
   </script>
 </body>
 </html>
